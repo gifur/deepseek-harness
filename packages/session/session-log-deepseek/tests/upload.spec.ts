@@ -405,7 +405,7 @@ describe('incremental DeepSeek session-log upload', () => {
   })
 
   it.each([undefined, 'compaction', 'session-title', 'auto-review'])(
-    'uploads and acknowledges eligible requests with purpose %s by default', async (purpose) => {
+    'uploads and acknowledges eligible requests with purpose %s when enabled', async (purpose) => {
       const { ctx, session } = await harness('default-upload')
       session.append('turn/start', { turn: 1 })
       const prepared = await ctx.deepseekLlmApiExtensions.prepare({

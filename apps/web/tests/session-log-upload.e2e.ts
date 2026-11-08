@@ -10,7 +10,7 @@ import { startMockLlmServer } from '@deepseek-ai/dsh-llm-mock-server'
 import { launchWebScaffold, webSnapshotMode } from './scaffold.ts'
 import { connectFreshWorkspace, newEnglishPage, openSettings } from './support.ts'
 
-it.skipIf(webSnapshotMode() === 'record')('persists the upload switch and omits or resumes session logs on subsequent API requests', async () => {
+it.skipIf(webSnapshotMode() === 'record')('defaults upload off and persists explicit upload changes for subsequent API requests', async () => {
   const root = await mkdtemp(join(tmpdir(), 'dsh-upload-browser-'))
   onTestFinished(() => rm(root, { recursive: true, force: true }))
   const server = await startMockLlmServer({ sequence: ['success', 'success', 'success'], successText: 'UPLOAD_SETTING_DONE' })
@@ -19,7 +19,7 @@ it.skipIf(webSnapshotMode() === 'record')('persists the upload switch and omits 
   const overlay = join(root, 'upload.yml')
   await writeFile(overlay, JSON.stringify([
     { id: 'llm-deepseek', config: { baseURL: server.baseURL, apiKeyEnv: key } },
-    { id: 'session-log-deepseek', config: { enabled: true } },
+    { id: 'session-log-deepseek', config: {} },
     { id: 'agent-default-model', config: { provider: 'deepseek-official', model: 'deepseek-v4-flash' } },
   ]))
   const scaffold = await launchWebScaffold({ deepSeekMissingCredential: true, extraOverlayPath: overlay })
@@ -45,28 +45,30 @@ it.skipIf(webSnapshotMode() === 'record')('persists the upload switch and omits 
     await expect.poll(() => toggle.getAttribute('aria-checked')).toBe(String(enabled))
     await expect.poll(async () => {
       const patches = yaml.load(await readFile(join(scaffold.harnessHome, 'profiles/scaffold/cordis.patch.yml'), 'utf8')) as { id: string; config?: { enabled?: boolean } }[]
-      return patches.find(patch => patch.id === 'session-log-deepseek')?.config?.enabled ?? true
+      return patches.find(patch => patch.id === 'session-log-deepseek')?.config?.enabled ?? false
     }).toBe(enabled)
     await page.keyboard.press('Escape')
   }
 
-  const sessionId = await send('upload-enabled-marker')
-  expect(server.requests).toHaveLength(1)
-  expect(server.requests[0]!.body).toHaveProperty('dsh_session_log')
-  const first = server.requests[0]!.body as { dsh_session_log: { throughSeq: number } }
-  await setUpload(false)
-  await page.reload()
   await openSettings(page, 'en')
   await expect.poll(() => page.getByRole('switch', { name: 'Upload Session Log when using the official model API' }).getAttribute('aria-checked')).toBe('false')
   await page.keyboard.press('Escape')
-  expect(await send('upload-disabled-marker')).toBe(sessionId)
-  expect(server.requests).toHaveLength(2)
-  expect(server.requests[1]!.body).not.toHaveProperty('dsh_session_log')
+  const sessionId = await send('upload-default-disabled-marker')
+  expect(server.requests).toHaveLength(1)
+  expect(server.requests[0]!.body).not.toHaveProperty('dsh_session_log')
   await setUpload(true)
-  expect(await send('upload-resumed-marker')).toBe(sessionId)
+  await page.reload()
+  await openSettings(page, 'en')
+  await expect.poll(() => page.getByRole('switch', { name: 'Upload Session Log when using the official model API' }).getAttribute('aria-checked')).toBe('true')
+  await page.keyboard.press('Escape')
+  expect(await send('upload-enabled-marker')).toBe(sessionId)
+  expect(server.requests).toHaveLength(2)
+  const enabled = server.requests[1]!.body as { dsh_session_log: { events: unknown[] } }
+  expect(enabled).toHaveProperty('dsh_session_log.afterSeq', -1)
+  expect(JSON.stringify(enabled.dsh_session_log.events)).toContain('"upload-default-disabled-marker"')
+  await setUpload(false)
+  expect(await send('upload-disabled-again-marker')).toBe(sessionId)
   expect(server.requests).toHaveLength(3)
-  const resumed = server.requests[2]!.body as { dsh_session_log: { events: unknown[] } }
-  expect(resumed).toHaveProperty('dsh_session_log.afterSeq', first.dsh_session_log.throughSeq)
-  expect(JSON.stringify(resumed.dsh_session_log.events)).toContain('"upload-disabled-marker"')
+  expect(server.requests[2]!.body).not.toHaveProperty('dsh_session_log')
   expect(server.requests.map(request => request.outcome)).toEqual(['completed', 'completed', 'completed'])
 })

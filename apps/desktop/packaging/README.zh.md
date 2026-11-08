@@ -178,7 +178,7 @@ pnpm run package:desktop:portable
 
 启动后，在 Models 设置中添加内网 OpenAI 兼容路由。运行时填写 `baseURL`、模型 ID 和 API key；ZIP 中不内置地址、模型 ID 或密钥。便携 profile 禁用官方账号／模型路由、遥测、更新检查、`web_search` 和 `web_fetch`。该可执行文件面向受控内网解压运行，因此不签名。
 
-**插件**页面接受插件的绝对本地目录或本地 `.tgz`／`.tar.gz` 组合包。Registry 包名、Git 来源、HTTP(S) tarball、公共 registry 探测、目录下载和版本更新均被禁用。安装以离线模式运行 pnpm，因此每项依赖都必须已经打入插件压缩包，或已存在于该机器的 pnpm store；缺少依赖时安装失败，不会回退访问 registry。
+**插件**页面接受插件的绝对本地目录或本地 `.tgz`／`.tar.gz` 组合包。Registry 包名、Git 来源、HTTP(S) tarball、公共 registry 探测、目录下载和版本更新均被禁用。安装以离线模式运行 pnpm，因此每项依赖都必须已经打入插件压缩包，或已存在于该机器的 pnpm store；缺少依赖时安装失败，不会回退访问 registry。[离线安装插件指南](../../../docs/user/guide/portable-offline-plugins.zh.md)说明从 GitHub 转移到内网的流程、插件包要求和经过验证的案例。
 
 该 profile 不提供进程级网络隔离。Shell、PTC、MCP 和本地安装的插件仍可自行建立连接；需要限制外连时使用内网部署的防火墙策略。
 

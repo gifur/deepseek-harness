@@ -149,7 +149,7 @@ it('keeps offline management on local package sources without registry or Git ac
   expect(await manager.removeBundle('extra')).toMatchObject({ application: 'failed' })
   expect(pnpm).toHaveBeenCalledTimes(2)
   expect(pnpm.mock.calls[0]?.[1]).toEqual(['add', source, '--offline'])
-  expect(pnpm.mock.calls[1]?.[1]).toEqual(['remove', 'extra', '--offline'])
+  expect(pnpm.mock.calls[1]?.[1]).toEqual(['remove', 'extra', '--config.offline=true'])
   expect(view).not.toHaveBeenCalled()
   expect(connection).not.toHaveBeenCalled()
   expect(transport).not.toHaveBeenCalled()

@@ -1080,7 +1080,7 @@ export class PluginManager extends TypertRemoteService {
   }
 
   /** Unload and remove a profile-owned bundle dependency through dsh plugin's pnpm path; a selected name no
-   * dependency holds is only deselected. Offline mode passes `--offline` to pnpm.
+   * dependency holds is only deselected. Offline mode enables pnpm's generic offline configuration.
    * @param name Installed dependency or selected bundle name.
    * @returns Removal diagnostics and the remaining profile state.
    */
@@ -1111,7 +1111,7 @@ export class PluginManager extends TypertRemoteService {
       // installed before this process started is removed with the registry an installation asks first.
       const registry = this.installedFrom.has(name) ? this.installedFrom.get(name) : this.configuredRegistries.registry
       result.packageResult = await this.runPnpm([
-        'remove', name, ...this.offline ? ['--offline'] : typeof registry === 'string' ? [`--config.registry=${registry}`] : [],
+        'remove', name, ...this.offline ? ['--config.offline=true'] : typeof registry === 'string' ? [`--config.registry=${registry}`] : [],
       ])
       if (result.packageResult.exitCode !== 0 || result.packageResult.timedOut === true) {
         throw new Error(result.packageResult.output)

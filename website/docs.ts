@@ -179,6 +179,14 @@ const homeAndGuide = pairedPages([
     order: 2,
   },
   {
+    source: 'docs/user/guide/portable-offline-plugins.md',
+    route: 'guide/portable-offline-plugins.md',
+    label: { root: '离线安装插件', en: 'Install plugins offline' },
+    sidebar: { root: 'zh-guide', en: 'en-guide' },
+    section: { root: '集成', en: 'Integrations' },
+    order: 3,
+  },
+  {
     source: 'docs/user/guide/mcp-memory.md',
     route: 'guide/mcp-memory.md',
     label: { root: '记忆 MCP', en: 'Memory MCP' },

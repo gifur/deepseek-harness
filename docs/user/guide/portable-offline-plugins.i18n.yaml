@@ -1,0 +1,28 @@
+# Bilingual-pair consistency record for portable-offline-plugins.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/user/guide/portable-offline-plugins.md
+/install-plugins-offline-in-the-portable-desktop:
+  en: f50852849b54b622
+  zh: 2ede1f44247327d5
+/install-plugins-offline-in-the-portable-desktop/before-you-start:
+  en: cbcb8b86004828d6
+  zh: 92113bda6834fef9
+/install-plugins-offline-in-the-portable-desktop/get-the-plugin-from-github:
+  en: fde2513a2855e113
+  zh: a049cb03076132f1
+/install-plugins-offline-in-the-portable-desktop/reproducible-github-example:
+  en: dab9253f00ad0e7a
+  zh: e6df48e03953a649
+/install-plugins-offline-in-the-portable-desktop/install-on-the-offline-computer:
+  en: 4ee6c61b68940cd6
+  zh: cdd6b6a928b86c3d
+/install-plugins-offline-in-the-portable-desktop/handle-installation-failures:
+  en: 62d0ada6a073f31e
+  zh: 759fbbe1a99783f9
+/install-plugins-offline-in-the-portable-desktop/security-and-network-scope:
+  en: c7b0edba80ca230d
+  zh: 8e33a39b393ceea7
+/install-plugins-offline-in-the-portable-desktop/further-exploration:
+  en: f94f60d290fb508f
+  zh: 1c348002edcf9702
