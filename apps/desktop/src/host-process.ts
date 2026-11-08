@@ -187,6 +187,7 @@ export class DesktopHostProcess {
    * @param packageManager - Bundled pnpm entry and Node launcher directory, scoped to package operations.
    * @param onPlatformSession - Private credential updates for embedded Platform views.
    * @param onPluginOperation - Optional diagnostic sink; malformed records are ignored without failing the Host.
+   * @param patchFiles - Launcher overlays applied only to this Host process.
    */
   constructor(
     private readonly node: string,
@@ -200,6 +201,7 @@ export class DesktopHostProcess {
 
     private readonly onPlatformSession?: (session: PlatformSession | null) => void,
     private readonly onPluginOperation?: (record: PluginOperationRecord) => void,
+    private readonly patchFiles: readonly string[] = [],
   ) {}
 
   /**
@@ -217,6 +219,7 @@ export class DesktopHostProcess {
       this.projectDir,
       this.primaryRuntime ?? join(this.runtimeDir, '..', 'runtime', 'primary-runtime'),
       ...this.packageManager === undefined ? [] : [this.packageManager.pnpm, this.packageManager.nodeBin],
+      ...this.patchFiles,
     ], {
       cwd: this.projectDir,
       env: desktopNodeEnvironment(this.node, undefined, this.environment),

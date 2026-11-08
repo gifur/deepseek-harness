@@ -113,6 +113,71 @@ it.each(['live', 'startup'] as const)('refuses an unsupported bundle before savi
   expect(await manager.setBundleEnabled('extra', false)).toMatchObject({ changed: false })
 })
 
+it('keeps offline management on local package sources without registry or Git access', async () => {
+  const { manager, dir, connection } = await fixture('live', false, undefined, { offline: true })
+  const source = join(dir, '..', 'offline-bundle')
+  mkdirSync(source, { recursive: true })
+  writeFileSync(join(source, 'package.json'), JSON.stringify({
+    name: 'offline-bundle', version: '1.0.0', description: 'Offline bundle', dsh: { bundle: { patch: './cordis.patch.yml' } },
+  }))
+  writeFileSync(join(source, 'cordis.patch.yml'), '[]\n')
+  const tarball = join(dir, '..', 'offline-bundle.tgz')
+  writeFileSync(tarball, '')
+  const view = vi.spyOn(operations, 'viewProfilePackage')
+  const transport = vi.spyOn(gitTransport, 'chooseGitTransport')
+  const pnpm = vi.spyOn(operations, 'runProfilePnpm').mockResolvedValue({
+    exitCode: 1, output: 'offline dependency is unavailable', truncated: false, logPath: join(dir, 'pnpm.log'), kind: 'not-found',
+  })
+  onTestFinished(() => { view.mockRestore(); transport.mockRestore(); pnpm.mockRestore() })
+
+  for (const spec of [source, `file:${source}`, `link:${source}`]) {
+    expect(await manager.inspect(spec)).toMatchObject({
+      status: 'accepted', kind: 'path', name: 'offline-bundle', bundle: true,
+    })
+  }
+  expect(await manager.inspect(tarball)).toMatchObject({ status: 'accepted', kind: 'tarball' })
+  for (const spec of ['remote-bundle', 'github:acme/remote-bundle', 'https://plugins.example/remote-bundle.tgz']) {
+    expect(await manager.inspect(spec)).toMatchObject({
+      status: 'refused', problem: 'invalid-spec', reason: 'offline mode accepts only an absolute local directory or local tarball',
+    })
+    expect(await manager.installBundle(spec)).toMatchObject({
+      application: 'failed', changed: false, error: { code: 'invalid-spec' },
+    })
+  }
+
+  expect(await manager.installBundle(source)).toMatchObject({ application: 'failed' })
+  expect(await manager.removeBundle('extra')).toMatchObject({ application: 'failed' })
+  expect(pnpm).toHaveBeenCalledTimes(2)
+  expect(pnpm.mock.calls[0]?.[1]).toEqual(['add', source, '--offline'])
+  expect(pnpm.mock.calls[1]?.[1]).toEqual(['remove', 'extra', '--offline'])
+  expect(view).not.toHaveBeenCalled()
+  expect(connection).not.toHaveBeenCalled()
+  expect(transport).not.toHaveBeenCalled()
+})
+
+it('does not offer remote catalog entries, details, or version lookups in offline mode', async () => {
+  const { manager, dir } = await fixture('live', false, undefined, { offline: true })
+  const view = vi.spyOn(operations, 'viewProfilePackage')
+  const fetch = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline detail attempted a network request'))
+  onTestFinished(() => { view.mockRestore(); fetch.mockRestore() })
+
+  const bundles = await manager.listBundles()
+  expect(bundles.some(bundle => bundle.availability === 'missing')).toBe(false)
+  expect(bundles.every(bundle => !bundle.updatable)).toBe(true)
+  const offered = OFFICIAL_ON_DEMAND_CATALOG[0]
+  expect(offered).toBeDefined()
+  const manifest = readProfileManifest('test', dir)
+  manifest.dsh = {
+    ...manifest.dsh,
+    profile: { ...manifest.dsh?.profile, bundles: [...manifest.dsh?.profile?.bundles ?? [], offered!.packageName] },
+  }
+  writeFileSync(join(dir, 'package.json'), JSON.stringify(manifest))
+  expect(await manager.readBundleDetail(offered!.packageName, 'en')).toEqual({ status: 'none' })
+  expect(await manager.listVersions('extra')).toMatchObject({ status: 'refused', problem: 'not-updatable', attempts: [] })
+  expect(view).not.toHaveBeenCalled()
+  expect(fetch).not.toHaveBeenCalled()
+})
+
 it('allows supported bundle activation and permits deselecting an unsupported saved bundle', async () => {
   const { manager, dir } = await fixture()
   const path = join(dir, 'node_modules/extra/package.json')

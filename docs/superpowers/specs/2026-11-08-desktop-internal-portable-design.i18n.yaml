@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-11-08-desktop-internal-portable-design.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/superpowers/specs/2026-11-08-desktop-internal-portable-design.md
+/desktop-internal-portable-build:
+  en: 518abdfe46e6d602
+  zh: 6dc4fafc97282576
+/desktop-internal-portable-build/goal:
+  en: e0ed91f4ca6f2c70
+  zh: 888708e08e175044
+/desktop-internal-portable-build/runtime-behavior:
+  en: 0a72d9b9302f163c
+  zh: 50932f054c5fd812
+/desktop-internal-portable-build/artifact-behavior:
+  en: 17534cbc4e552b63
+  zh: 45f50c27a257f616
+/desktop-internal-portable-build/configuration:
+  en: 90e188033eaf202f
+  zh: 14f07d5785e6e8a3
+/desktop-internal-portable-build/verification:
+  en: 6b246a65ea52cc78
+  zh: cdfaa9af63068de9

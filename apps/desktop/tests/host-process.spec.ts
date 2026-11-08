@@ -27,7 +27,7 @@ const server = createServer((request, response) => {
     return
   }
   response.setHeader('content-type', 'application/json')
-  response.end(JSON.stringify({runtime: process.argv[2], profile: process.argv[3], cwd: process.cwd(), nodePath: process.env.NODE_PATH, registry: process.env.NPM_CONFIG_REGISTRY, nodeOptions: process.env.NODE_OPTIONS, runAsNode: process.env.ELECTRON_RUN_AS_NODE, internals: process.execArgv.includes('--expose-internals')}))
+  response.end(JSON.stringify({runtime: process.argv[2], profile: process.argv[3], portablePatch: process.argv[7], cwd: process.cwd(), nodePath: process.env.NODE_PATH, registry: process.env.NPM_CONFIG_REGISTRY, nodeOptions: process.env.NODE_OPTIONS, runAsNode: process.env.ELECTRON_RUN_AS_NODE, internals: process.execArgv.includes('--expose-internals')}))
 })
 server.listen(0, '127.0.0.1', () => {
   process.send({ type: 'ready', url: 'http://127.0.0.1:' + server.address().port + '/?token=fixture' })
@@ -91,6 +91,19 @@ afterEach(async () => {
 })
 
 describe('desktop host process', () => {
+  it('passes the packaged portable profile overlay to the Host after package-manager arguments', async () => {
+    const runtime = projectWithHost(HTTP_HOST)
+    const patch = join(runtime, 'portable-profile.patch.yml')
+    writeFileSync(patch, '[]\n')
+    const host = new DesktopHostProcess(process.execPath, runtime, runtime, undefined, process.env,
+      undefined, undefined, { pnpm: 'pnpm.mjs', nodeBin: 'bin' }, undefined, undefined, [patch])
+    hosts.push(host)
+    const ready = await host.start()
+    const response = await fetch(ready.url)
+    await expect(response.json()).resolves.toMatchObject({ portablePatch: patch })
+    await host.stop()
+  })
+
   it('retains the announced run identity when startup fails before readiness', async () => {
     const runtime = projectWithHost(`
 process.send({ type: 'starting', runId: 'c254ab28-97c9-4382-95e6-2db9c66f98c8' })

@@ -16,6 +16,8 @@ import type { BundleDetail, BundleInfo } from './types.ts'
 /** Limits and sources of bundle detail reads. */
 export interface BundleDetailOptions {
   readonly profile: ProfileContext
+  /** Whether an uninstalled catalog bundle may be read from npm file CDNs. */
+  readonly allowRemoteFiles: boolean
   readonly maxDocumentBytes: number
   readonly maxImageBytes: number
   readonly npmFileSources: readonly NpmFileSource[]
@@ -44,6 +46,7 @@ function filesOf(bundle: BundleInfo, preferred: readonly string[], options: Bund
     // `listBundles()` reports the version of every bundle whose manifest it read; one without is read as unversioned.
     return localFiles(dir, String(bundle.version))
   }
+  if (!options.allowRemoteFiles) return undefined
   const version = bundle.installTarget?.version
   if (version === undefined || semver.valid(version) !== version) return undefined
   const sources = npmFileSourceOrder(options.npmFileSources, preferred)

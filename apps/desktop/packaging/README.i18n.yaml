@@ -12,8 +12,8 @@
   en: e98e516b9e1bd0f4
   zh: 1a2abd7d89ef78a1
 /desktop-packaging/table-of-contents:
-  en: a6203dc2e690c7e1
-  zh: 07b516549b8e3328
+  en: 4fc9cd274cbe696b
+  zh: 54c35be33ca625d9
 /desktop-packaging/choose-a-build-path:
   en: 0b35c7471c09b27a
   zh: cc4a382b99fc3210
@@ -30,8 +30,11 @@
   en: 08619f0e26782636
   zh: 7c236cbe46be4a47
 /desktop-packaging/unsigned-windows-test-installer:
-  en: f429bc0c280e2dfa
-  zh: 4adbcc9e906bdf80
+  en: d43f86e82d3c8912
+  zh: d61e6f3968650f72
+/desktop-packaging/internal-windows-portable-zip:
+  en: cb441149aaca59e3
+  zh: 5be1f73774f88362
 /desktop-packaging/local-macos-dmg-without-release-signing:
   en: 1146bbc11be43960
   zh: 7c13543a0513c059

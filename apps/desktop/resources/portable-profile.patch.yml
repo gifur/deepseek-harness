@@ -1,0 +1,40 @@
+# Internal portable Desktop overlay. Keep endpoint and credentials in the user
+# profile: the dormant llm-pi-ai adapter is configured from Models at runtime.
+- id: deepseek-account
+  disabled: true
+- id: llm-deepseek
+  disabled: true
+- id: llm-deepseek-account
+  disabled: true
+- id: session-telemetry-otel
+  disabled: true
+- id: desktop-product-telemetry
+  disabled: true
+- id: product-analytics
+  disabled: true
+- id: tool-web
+  disabled: true
+- id: web-search-deepseek
+  disabled: true
+- id: web-deepseek-api
+  disabled: true
+- id: web-fetch-http
+  disabled: true
+- id: plugin-manager
+  disabled: false
+  config:
+    offline: true
+- id: tool-plugin-manager
+  disabled: true
+- id: ui-plugin-manager
+  disabled: false
+  config:
+    registryProbeEnabled: false
+- id: ui-settings-plugin-inventory
+  disabled: true
+- id: plugin-inventory
+  disabled: false
+- id: account-controller
+  disabled: true
+- id: ui-settings-account
+  disabled: true

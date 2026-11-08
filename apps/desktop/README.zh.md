@@ -14,6 +14,7 @@ Desktop 在原生应用中运行 Harness 工作区。本参考文档说明应用
 
 - [应用概览](#application-overview)
 - [终端命令](#terminal-command)
+- [内网便携构建](#internal-portable-build)
 - [关闭窗口与退出](#closing-the-window-and-quitting)
 - [关键技术决策](#key-technical-decisions)
 - [内置命令运行时](#bundled-command-runtime)
@@ -243,6 +244,12 @@ Desktop 在 Host 启动后、打开工作区前检查模型 API Key 引用是否
 - [Desktop 打包](packaging/README.zh.md)：本地与 Actions 构建、版本、部署配置、产物、日志和验收。
 - [Windows 签名与 runner 运维](windows-signing/README.zh.md)：机器部署、已接受的隔离风险、签名凭据、Token 失败与缓存维护。
 - [Desktop 发布](publishing/README.zh.md)：上传凭据、发布标识、固定下载、更新清单和上传恢复。
+
+<a id="internal-portable-build"></a>
+
+### 内网便携构建
+
+[Desktop 打包指南](packaging/README.zh.md#internal-windows-portable-zip)说明未签名的内网 Windows x64 ZIP。它直接进入工作区，禁用官方路由与 Web 工具，通过运行时 Models 设置接受内网 OpenAI 兼容模型路由，并且无需访问 registry 即可安装本地插件组合包。
 
 <a id="windows-uninstall-rules"></a>
 

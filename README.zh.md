@@ -75,6 +75,14 @@ pnpm dsh web
 
 `pnpm run dev:web` 会在一个终端里完成构建、启动，并在源码修改时重建 client bundle；`make help` 列出 Web 与 Desktop 对应的 Make target。完整表格见开发指南的「应用命令」一节。
 
+使用以下命令构建未签名的 Windows x64 内网便携 ZIP：
+
+```sh
+pnpm run package:desktop:portable
+```
+
+产物位置、运行时模型配置和网络限制见 [Desktop 打包指南](apps/desktop/packaging/README.zh.md#internal-windows-portable-zip)。
+
 面向 agent：请遵循 [AGENTS.md](AGENTS.md)。
 
 ## 引用

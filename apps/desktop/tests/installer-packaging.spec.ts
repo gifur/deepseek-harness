@@ -102,6 +102,25 @@ describe('installer preparation preserves application dependencies', () => {
     expect(config.artifactName).toBe('deepseek-harness-${version}-${os}-${arch}-unsigned.${ext}')
   })
 
+  it('adds the portable profile marker only to a portable Windows build', async () => {
+    const { createElectronBuilderConfig } = await import('../scripts/electron-builder-config.mjs')
+    const portable = createElectronBuilderConfig({
+      DSH_DESKTOP_APP_ID: 'com.deepseek.harness',
+      DSH_DESKTOP_TARGET_PLATFORM: 'win32', DSH_DESKTOP_TARGET_ARCH: 'x64',
+      DSH_DESKTOP_UNSIGNED: '1', DSH_DESKTOP_PORTABLE_BUILD: '1',
+    }, 'win32', 'x64')
+    const marker = portable.extraResources.find(resource => resource.to === 'portable-profile.patch.yml')
+    expect(marker?.from).toMatch(/resources[\\/]portable-profile\.patch\.yml$/u)
+    expect(() => createElectronBuilderConfig({ DSH_DESKTOP_APP_ID: 'com.deepseek.harness', DSH_DESKTOP_PORTABLE_BUILD: '1', DSH_DESKTOP_TARGET_PLATFORM: 'darwin',
+      DSH_DESKTOP_TARGET_ARCH: 'arm64', DSH_DESKTOP_UNSIGNED: '1' }, 'darwin', 'arm64')).toThrow(/portable build requires Windows x64/u)
+
+    const ordinary = createElectronBuilderConfig({ DSH_DESKTOP_APP_ID: 'com.example.desktop',
+      DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: 'https://policy.example.com',
+      DSH_DESKTOP_MANDATORY_UPDATE_CONFIG: JSON.stringify({ allowedAuthOrigins: ['https://login.example.com'] }),
+      DSH_DESKTOP_TARGET_PLATFORM: 'win32', DSH_DESKTOP_TARGET_ARCH: 'x64', DSH_DESKTOP_UNSIGNED: '1' }, 'win32', 'x64')
+    expect(ordinary.extraResources.some(resource => resource.to === 'portable-profile.patch.yml')).toBe(false)
+  })
+
   it('packages every preload entry point the shell loads', async () => {
     const { readdirSync, readFileSync } = await import('node:fs')
     const sourceDirectory = new URL('../src/', import.meta.url)

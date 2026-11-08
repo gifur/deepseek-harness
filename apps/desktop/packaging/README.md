@@ -18,6 +18,7 @@ Build Desktop installers locally or through Windows or macOS Actions, choose dep
 - [Windows Actions packaging](#windows-actions)
 - [macOS self-hosted packaging](#macos-actions)
 - [Unsigned Windows test installer](#unsigned-windows-test-installer)
+- [Internal Windows portable ZIP](#internal-windows-portable-zip)
 - [Local macOS DMG without release signing](#local-macos-dmg-without-release-signing)
 - [macOS release signing and diagnostics](#macos-release-signing)
 - [Directory builds and preparation](#directory-and-preparation)
@@ -162,6 +163,24 @@ pnpm run package:desktop:win:x64:unsigned
 The command reads `.env.windows` and requires `DSH_DESKTOP_APP_ID` and the [mandatory-update policy settings](../README.md#mandatory-update-policy), including a real HTTPS service origin. The local run and CI use Node 24; the remaining tools are the root `packageManager` version of pnpm, Git, PowerShell 7 (`pwsh`), tar, Python, Visual C++ Build Tools and a Windows SDK. Set `PYTHON` when Python is absent from `PATH`. It writes the installer to `.desktop-build/targets/win-x64/unsigned-artifacts/`, omits ordinary automatic-update configuration, strips signing credentials, and creates no release completion record. EV and upload credentials are unnecessary. Signed packaging and upload retain their release requirements.
 
 Run `pnpm install --frozen-lockfile`, then `pnpm run package:desktop:win:x64:unsigned --check` to validate configuration and tooling before the full command above. Packaging performs its own complete build and isolated runtime smoke without an online model. Stage logs remain under `.desktop-build/packaging-runs/`; a successful build alone does not qualify the installer. Dependency installation and runtime preparation need access to npm, GitHub release assets and nodejs.org; use the existing registry and proxy configuration when the network requires it. Caches and tool locations belong to the build machine, not tracked personal paths.
+
+<a id="internal-windows-portable-zip"></a>
+
+## Internal Windows portable ZIP
+
+The internal Windows x64 portable build creates an unsigned ZIP that runs after extraction without installation or a certificate:
+
+```sh
+pnpm run package:desktop:portable
+```
+
+The command writes `apps/desktop/.desktop-build/targets/win-x64/portable-artifacts/deepseek-harness-<version>-win-x64-portable.zip`. Extract the archive and double-click `DeepSeek Harness.exe`. The archive contains the complete unpacked Electron directory, carries no updater metadata or release record, and is not a public download artifact.
+
+After launch, open Models settings and add the internal OpenAI-compatible route. Enter its `baseURL`, model identifier, and API key at runtime; no endpoint, model ID, or secret is embedded in the ZIP. The portable profile disables official account/model routes, telemetry, update checks, `web_search`, and `web_fetch`. The executable is intentionally unsigned for controlled internal extraction and launch.
+
+The **Plugins** page accepts an absolute local plugin directory or a local `.tgz`/`.tar.gz` bundle. Registry names, Git sources, HTTP(S) tarballs, public registry probes, catalog downloads, and version updates are disabled. Installation runs pnpm in offline mode, so every dependency must be bundled in the plugin archive or already present in the machine's pnpm store; a missing dependency fails the installation without falling back to a registry.
+
+This profile does not provide process-wide network isolation. Shell, PTC, MCP, and locally installed plugins can create their own connections; use the internal deployment firewall policy when egress must be blocked.
 
 <a id="local-macos-dmg-without-release-signing"></a>
 

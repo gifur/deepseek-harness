@@ -54,6 +54,8 @@ export { InvalidInstallSpecError, parseInstallSpec, type ParsedInstallSpec } fro
 export interface Config {
   /** The pnpm executable name or path; resolved through `PATH` like the `dsh plugin` command. */
   pnpmCommand?: string
+  /** Accept only absolute local directories and local tarballs, and run pnpm in offline mode. */
+  offline?: boolean
   /** Maximum retained package-operation diagnostic bytes. */
   outputBytes?: number
   /** Maximum time to wait for another process's profile package operation. */
@@ -279,6 +281,13 @@ function parsedForRegistry(spec: string): ParsedInstallSpec {
   }
 }
 
+const OFFLINE_SPEC_REASON = 'offline mode accepts only an absolute local directory or local tarball'
+
+/** Whether pnpm can read the package itself without a registry, Git host, or HTTP request. */
+function isLocalInstallSpec(spec: ParsedInstallSpec): boolean {
+  return spec.kind === 'path' || (spec.kind === 'tarball' && spec.path !== undefined)
+}
+
 /** Only registry package names are retained before installation resolves its target. */
 function installOperationTarget(spec: string): string | null {
   let parsed: ParsedInstallSpec
@@ -313,6 +322,7 @@ export class PluginManager extends TypertRemoteService {
   static inject = ['loader', 'profileContext']
   static Config: z<Config> = z.object({
     pnpmCommand: z.string().default('pnpm'),
+    offline: z.boolean().default(false),
     outputBytes: z.number().step(1).min(1).default(16384),
     lockWaitMs: z.number().step(1).min(0).default(120000),
     inspectTimeoutMs: z.number().step(1).min(1000).default(20000),
@@ -345,6 +355,7 @@ export class PluginManager extends TypertRemoteService {
   private readonly gitTransportTimeoutMs: number
   private readonly idleTimeoutMs: number
   private readonly pnpmCommand: string
+  private readonly offline: boolean
   private readonly versionListLimit: number
   private readonly versionLookupConcurrency: number
   private readonly configuredRegistries: Omit<PluginRegistries, 'resolved'>
@@ -367,6 +378,7 @@ export class PluginManager extends TypertRemoteService {
     this.gitTransportTimeoutMs = (config as Required<Config>).gitTransportTimeoutMs
     this.idleTimeoutMs = (config as Required<Config>).idleTimeoutMs
     this.pnpmCommand = (config as Required<Config>).pnpmCommand
+    this.offline = (config as Required<Config>).offline
     this.versionListLimit = (config as Required<Config>).versionListLimit
     this.versionLookupConcurrency = (config as Required<Config>).versionLookupConcurrency
     this.configuredRegistries = {
@@ -375,7 +387,8 @@ export class PluginManager extends TypertRemoteService {
     }
     const required = config as Required<Config>
     this.detail = {
-      profile: this.profile, maxDocumentBytes: required.detailMaxBytes, maxImageBytes: required.detailImageMaxBytes,
+      profile: this.profile, allowRemoteFiles: !this.offline,
+      maxDocumentBytes: required.detailMaxBytes, maxImageBytes: required.detailImageMaxBytes,
       npmFileSources: required.detailNpmFileSources, timeoutMs: required.detailFetchTimeoutMs, lifetime: this.abort.signal,
     }
     ctx.effect(() => async () => {
@@ -482,12 +495,17 @@ export class PluginManager extends TypertRemoteService {
 
   /** Read installed, installation-provided, and offline Official catalog bundles, plus selected non-bundle names.
    * A dependency without a bundle patch is listed, as a `not-bundle` problem, only while it is selected.
+   * Offline mode omits uninstalled catalog entries and marks installed bundles as not updatable.
    * @returns Package versions, manifest descriptions, the installable spec of profile dependencies, rows, optional
    * display metadata, activation selections, whether the installation offers the bundle, and removal availability.
    */
   @Remote
   listBundles(): Promise<BundleInfo[]> {
-    return Promise.resolve(this.readBundles().map(bundle => ({ ...bundle, updatable: typeof updateRefusal(bundle, bundle.name) !== 'string' })))
+    const bundles = this.readBundles()
+      .filter(bundle => !this.offline || bundle.availability !== 'missing' || bundle.enabled || bundle.installed)
+    return Promise.resolve(bundles.map(bundle => ({
+      ...bundle, updatable: !this.offline && typeof updateRefusal(bundle, bundle.name) !== 'string',
+    })))
   }
 
   /** The bundle inventory before update eligibility, which is derived from each listed bundle. */
@@ -597,6 +615,7 @@ export class PluginManager extends TypertRemoteService {
    * @param options The registry asked first.
    * @param signal Ends a registry lookup early.
    * @returns The package the spec names, or why it is refused.
+   * Offline mode rejects every form except an absolute local directory or local tarball before any lookup.
    */
   @Remote
   async inspect(spec: string, options?: InspectOptions, signal?: AbortSignal): Promise<PluginSpecInspection> {
@@ -608,12 +627,13 @@ export class PluginManager extends TypertRemoteService {
       if (!(error instanceof InvalidInstallSpecError)) throw error
       return refused('invalid-spec', error.reason)
     }
+    if (this.offline && !isLocalInstallSpec(parsed)) return refused('invalid-spec', OFFLINE_SPEC_REASON)
     const manifest = readProfileManifest('dsh', this.profile.dir)
     const installation = JSON.parse(readFileSync(this.profile.installAnchor, 'utf8')) as InstallationManifest
     const known = new Set([
       ...bundleSelection(manifest), ...Object.keys(manifest.dependencies ?? {}), ...Object.keys(installation.dependencies ?? {}),
     ])
-    const plan = registryPlan(options?.registry, await this.registries())
+    const plan = this.offline ? [null] : registryPlan(options?.registry, await this.registries())
     const registry = plan[0] as Registry
     switch (parsed.kind) {
       case 'git': return { status: 'accepted', kind: 'git', bundle: null, registry, host: parsed.host }
@@ -660,6 +680,9 @@ export class PluginManager extends TypertRemoteService {
    */
   @Remote
   async listVersions(name: string, options?: ListVersionsOptions, signal?: AbortSignal): Promise<PluginVersionList> {
+    if (this.offline) {
+      return { status: 'refused', problem: 'not-updatable', reason: 'offline mode does not query package registries', attempts: [] }
+    }
     const target = updateRefusal((await this.listBundles()).find(bundle => bundle.name === name), name)
     if (typeof target === 'string') return { status: 'refused', problem: 'not-updatable', reason: target, attempts: [] }
     const plan = registryPlan(this.registryFor(name, options?.registry), await this.registries())
@@ -722,6 +745,9 @@ export class PluginManager extends TypertRemoteService {
       from, to: version, step: 'check',
       result: { changed: false, application: 'failed', stage: 'install', target: name, error },
     })
+    if (this.offline) {
+      return refusedBefore({ code: 'invalid-spec', diagnostic: 'offline mode does not query package registries' })
+    }
     if (typeof target === 'string') return refusedBefore({ code: 'invalid-spec', diagnostic: target })
     const { bundle } = target
     if (semver.valid(version) === null || !semver.gt(version, from)) {
@@ -863,6 +889,8 @@ export class PluginManager extends TypertRemoteService {
    * find that only SSH can read it. A run
    * that fails, is cancelled, or adds a package without a bundle patch restores
    * `package.json` and `pnpm-lock.yaml` as they were; downloaded files can stay.
+   * Offline mode accepts only absolute local directories and local tarballs, skips host and registry probes,
+   * and passes `--offline` to pnpm.
    * @param spec One package spec, including local paths relative to the invocation directory.
    * @param options Whether to activate the installed bundle (defaults to true), the request id a cancellation names,
    * the pending build scripts to allow, whether to save an exact dependency, and the registry asked first.
@@ -879,6 +907,16 @@ export class PluginManager extends TypertRemoteService {
     }
     const result = this.change(async (result) => {
       if (spec.trim() === '' || spec.startsWith('-')) throw new ManagementFailure('invalid-spec')
+      let parsed: ParsedInstallSpec | undefined
+      if (this.offline) {
+        try { parsed = parseInstallSpec(spec) }
+        catch (error) {
+          /* v8 ignore next -- parseInstallSpec throws nothing but its own refusal */
+          if (!(error instanceof InvalidInstallSpecError)) throw error
+          throw new ManagementFailure('invalid-spec')
+        }
+        if (!isLocalInstallSpec(parsed)) throw new ManagementFailure('invalid-spec')
+      }
       if (stopped()) throw new InstallCancelledError()
       const before = readProfileManifest('dsh', this.profile.dir).dependencies ?? {}
       // With HMR, an installed package is removed before another version is installed, so its plugins stop first.
@@ -895,40 +933,42 @@ export class PluginManager extends TypertRemoteService {
       let version: string | undefined
       try {
         result.registries = []
-        const parsed = parsedForRegistry(spec)
+        parsed ??= parsedForRegistry(spec)
         const signal = AbortSignal.any([this.abort.signal, control.abort.signal])
         const env = this.profile.packageManager?.env === undefined ? {} : { env: this.profile.packageManager.env }
-        const connection = checkGithubConnection(parsed, this.profile.dir, {
-          timeoutMs: this.githubConnectionTimeoutMs, outputBytes: this.outputBytes, signal, ...env,
-        })
-        this.packageOperations.add(connection)
-        let connectionFailure: GithubConnectionFailure | undefined
-        try { connectionFailure = await connection }
-        finally { this.packageOperations.delete(connection) }
-        if (stopped()) throw new InstallCancelledError()
-        if (connectionFailure?.kind === 'network' || connectionFailure?.kind === 'timeout') {
-          // The answer keeps a plain PackageResult; the check's command line is only streamed as the run below.
-          const { argv, ...packageResult } = connectionFailure
-          result.packageResult = packageResult
-          result.failedAt = 'spec-host'
-          // pnpm never runs, so the check is the installation's only run: stream its failure into the install log.
-          // A timed-out Git reports no exit code of its own, unlike the result, which records the status it is read as.
-          if (requestId !== undefined) {
-            this.ownerContext.emit('plugin-manager/install-log', {
-              requestId, jobId: randomUUID(), argv, cwd: this.profile.dir, stream: 'stderr',
-              text: connectionFailure.output, exitCode: connectionFailure.timedOut === true ? null : connectionFailure.exitCode,
-            })
+        let installSpec = spec
+        if (!this.offline) {
+          const connection = checkGithubConnection(parsed, this.profile.dir, {
+            timeoutMs: this.githubConnectionTimeoutMs, outputBytes: this.outputBytes, signal, ...env,
+          })
+          this.packageOperations.add(connection)
+          let connectionFailure: GithubConnectionFailure | undefined
+          try { connectionFailure = await connection }
+          finally { this.packageOperations.delete(connection) }
+          if (stopped()) throw new InstallCancelledError()
+          if (connectionFailure?.kind === 'network' || connectionFailure?.kind === 'timeout') {
+            // The answer keeps a plain PackageResult; the check's command line is only streamed as the run below.
+            const { argv, ...packageResult } = connectionFailure
+            result.packageResult = packageResult
+            result.failedAt = 'spec-host'
+            // pnpm never runs, so the check is the installation's only run: stream its failure into the install log.
+            // A timed-out Git reports no exit code of its own, unlike the result, which records the status it is read as.
+            if (requestId !== undefined) {
+              this.ownerContext.emit('plugin-manager/install-log', {
+                requestId, jobId: randomUUID(), argv, cwd: this.profile.dir, stream: 'stderr',
+                text: connectionFailure.output, exitCode: connectionFailure.timedOut === true ? null : connectionFailure.exitCode,
+              })
+            }
+            throw new Error(connectionFailure.output)
           }
-          throw new Error(connectionFailure.output)
+          const transport = chooseGitTransport(parsed, this.profile.dir, { timeoutMs: this.gitTransportTimeoutMs, signal, ...env })
+          this.packageOperations.add(transport)
+          try { installSpec = await transport }
+          finally { this.packageOperations.delete(transport) }
         }
-        const transport = chooseGitTransport(parsed, this.profile.dir, { timeoutMs: this.gitTransportTimeoutMs, signal, ...env })
-        this.packageOperations.add(transport)
-        let installSpec: string
-        try { installSpec = await transport }
-        finally { this.packageOperations.delete(transport) }
         if (stopped()) throw new InstallCancelledError()
         // The last run is the result's; the registries asked stay listed whatever the outcome.
-        const plan = registryPlan(options?.registry, await this.registries())
+        const plan = this.offline ? [null] : registryPlan(options?.registry, await this.registries())
         let run: PackageResult | undefined
         let used: Registry = null
         for (const [index, registry] of plan.entries()) {
@@ -938,7 +978,9 @@ export class PluginManager extends TypertRemoteService {
           result.registries.push(registry)
           used = registry
           announce('installing', { registry, index: index + 1, total: plan.length })
-          run = await this.runPnpm(['add', installSpec, ...options?.saveExact === true ? ['--save-exact'] : [], ...registryArguments(registry)], control.abort.signal, requestId)
+          run = await this.runPnpm([
+            'add', installSpec, ...options?.saveExact === true ? ['--save-exact'] : [], ...this.offline ? ['--offline'] : registryArguments(registry),
+          ], control.abort.signal, requestId)
           result.packageResult = run
           if (stopped()) throw new InstallCancelledError()
           // A compatibility refusal is the package's own answer, so no other registry is asked.
@@ -1038,7 +1080,7 @@ export class PluginManager extends TypertRemoteService {
   }
 
   /** Unload and remove a profile-owned bundle dependency through dsh plugin's pnpm path; a selected name no
-   * dependency holds is only deselected.
+   * dependency holds is only deselected. Offline mode passes `--offline` to pnpm.
    * @param name Installed dependency or selected bundle name.
    * @returns Removal diagnostics and the remaining profile state.
    */
@@ -1068,7 +1110,9 @@ export class PluginManager extends TypertRemoteService {
       // `pnpm remove` takes no `--registry` option; the generic configuration flag sets the same setting. A package
       // installed before this process started is removed with the registry an installation asks first.
       const registry = this.installedFrom.has(name) ? this.installedFrom.get(name) : this.configuredRegistries.registry
-      result.packageResult = await this.runPnpm(['remove', name, ...typeof registry === 'string' ? [`--config.registry=${registry}`] : []])
+      result.packageResult = await this.runPnpm([
+        'remove', name, ...this.offline ? ['--offline'] : typeof registry === 'string' ? [`--config.registry=${registry}`] : [],
+      ])
       if (result.packageResult.exitCode !== 0 || result.packageResult.timedOut === true) {
         throw new Error(result.packageResult.output)
       }

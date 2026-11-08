@@ -7,7 +7,15 @@ import { smokeDesktopRuntime } from '../scripts/smoke-runtime.ts'
 import { verifyDesktopRuntime, writeDesktopRuntime } from '../src/runtime-tree.ts'
 import { runtimeFixture } from './runtime-fixture.ts'
 
-const { payload } = vi.hoisted(() => ({ payload: vi.fn(async (..._args: unknown[]) => ({ stdout: '' })) }))
+const { payload, remove } = vi.hoisted(() => ({
+  payload: vi.fn(async (..._args: unknown[]) => ({ stdout: '' })),
+  remove: vi.fn<typeof import('node:fs/promises').rm>(),
+}))
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>()
+  remove.mockImplementation(actual.rm)
+  return { ...actual, rm: remove }
+})
 vi.mock('node:child_process', async (importOriginal) => {
   const { promisify } = await import('node:util')
   return { ...await importOriginal<typeof import('node:child_process')>(),
@@ -62,4 +70,25 @@ it('smokes an x64 target verified on an arm64 build host without revalidating ag
   expect(smokeDesktopRuntime).toHaveBeenCalledWith(root, electron, descriptor, expect.any(Object), resources)
   const environment = vi.mocked(smokeDesktopRuntime).mock.calls[0]![3]
   expect(existsSync(environment.NARB_NATIVE_CACHE_DIR!)).toBe(false)
+})
+
+it('waits for Windows to release a loaded native cache before removing it', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'prepared-runtime-cache-release-'))
+  roots.push(root)
+  const fixture = runtimeFixture(root)
+  const target = { platform: 'win32' as const, arch: 'x64' }
+  writeDesktopRuntime(root, fixture.release, fixture.sharedPackages.map(entry => entry.name), target)
+  const descriptor = await verifyDesktopRuntime(root, fixture.release.version, target)
+  const actual = await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises')
+  remove.mockImplementationOnce(async (path, options) => {
+    if (options?.maxRetries === undefined) {
+      throw Object.assign(new Error('native module is still loaded'), { code: 'EPERM' })
+    }
+    await actual.rm(path, options)
+  })
+  vi.mocked(smokeDesktopRuntime).mockImplementationOnce(async (...args) => {
+    roots.push(args[3].NARB_NATIVE_CACHE_DIR!)
+  })
+
+  await smokePreparedRuntime(root, join(root, 'electron'), join(root, 'runtime'), descriptor)
 })

@@ -16,11 +16,12 @@ export interface DesktopElectronBuilderConfig {
   ]
   readonly extraMetadata: { readonly dshDesktopAppId: string }
   readonly asarUnpack: readonly string[]
-  readonly extraResources: readonly [
-    { readonly from: string, readonly to: 'runtime' },
-    { readonly from: string, readonly to: 'icon.png' },
-    ...{ readonly from: string, readonly to: 'tray.ico' }[],
-  ]
+  readonly extraResources: readonly (
+    | { readonly from: string, readonly to: 'runtime' }
+    | { readonly from: string, readonly to: 'icon.png' }
+    | { readonly from: string, readonly to: 'portable-profile.patch.yml' }
+    | { readonly from: string, readonly to: 'tray.ico' }
+  )[]
   readonly mac: {
     readonly extendInfo: {
       readonly CFBundleLocalizations: readonly string[]

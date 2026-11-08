@@ -56,6 +56,14 @@ Start with the [development guide](docs/development.md) and [architecture docume
 
 `pnpm run dev:web` builds, serves, and rebuilds client bundles on source edits in one terminal, and `make help` lists the matching Make targets for Web and Desktop; the guide's application commands section owns the full table.
 
+Build the unsigned Windows x64 internal portable ZIP with:
+
+```sh
+pnpm run package:desktop:portable
+```
+
+See the [Desktop packaging guide](apps/desktop/packaging/README.md#internal-windows-portable-zip) for the output path, runtime model configuration, and network limitations.
+
 For agents, follow [AGENTS.md](AGENTS.md).
 
 ## Citation

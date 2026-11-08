@@ -23,6 +23,17 @@ async function withDirectory(action: (directory: string) => Promise<void>): Prom
 }
 
 describe('Desktop local packaging configuration', () => {
+  it('selects portable settings without reading release dotenv or mandatory-update policy', async () => {
+    const selected = loadDesktopPackageEnvironment('win32', {
+      DSH_DESKTOP_APP_ID: 'com.official.desktop',
+      DSH_DESKTOP_MANDATORY_UPDATE_CONFIG: 'invalid inherited policy',
+      DSH_DESKTOP_AUTO_UPDATE_ENV: 'production',
+    }, 'missing-settings', { portable: true })
+    expect(selected).toMatchObject({ DSH_DESKTOP_APP_ID: 'com.deepseek.harness', DSH_DESKTOP_UNSIGNED: '1' })
+    expect(selected).not.toHaveProperty('DSH_DESKTOP_MANDATORY_UPDATE_CONFIG')
+    expect(() => { validateDesktopPackageEnvironment(selected, WINDOWS, { unsigned: true, portable: true }) }).not.toThrow()
+  })
+
   it('loads file-owned compression and defaults to fast Windows archive compression', async () => {
     expect(resolveWindowsPackageSettings({}).compressionLevel).toBe(3)
     await withDirectory(async (directory) => {

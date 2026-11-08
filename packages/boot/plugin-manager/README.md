@@ -37,6 +37,8 @@ For a deployment without agent presets other than the full SDK profile, enable t
   disabled: false
 ```
 
+Set `offline: true` on the `plugin-manager` row for a deployment that installs only from absolute local directories or local `.tgz`/`.tar.gz` files. The manager rejects registry names, Git sources, and HTTP(S) tarballs before probing them, omits uninstalled catalog entries and registry updates, and runs `pnpm add --offline`. The package and every dependency must therefore be bundled in the tarball or already available in the local pnpm store. This mode restricts package management; approved lifecycle scripts and installed plugin code can still open their own network connections.
+
 A plugin toggle updates only `disabled` in the last matching override in the profile's `cordis.patch.yml`, or appends an override when none matches. Matching uses the entry id and any module-name assertion. An override holding only `id` and `disabled` is removed, and none is appended, when the bundle layers and the remaining profile patches already give the entry the requested state, so the profile patch records only departures from the bundles. Home and invocation patches are left out of that comparison; they apply after the profile patch and do not decide what it records. A bundle toggle changes `package.json`'s ordered `dsh.profile.bundles` list. Disabling retains the dependency; enabling appends the bundle at the end, which can change configuration precedence. Installation enables a new bundle by default. Home and invocation patches retain their higher priority.
 
 Bundle platform declarations are checked before saving an enabled selection. Unsupported Hosts return `unsupported-platform`. The bundle remains visible with its display metadata and can still be deselected. Automatic activation after a package operation uses the same check. The agent-facing next step asks the user to run the bundle on a supported Host.
@@ -87,6 +89,7 @@ The CLI exposes `dsh plugin --profile <profile> version-exemptions`, `allow-vers
 | Field | Default | Meaning |
 |---|---|---|
 | `pnpmCommand` | `pnpm` | The pnpm executable name or path, resolved through `PATH` like the `dsh plugin` command. |
+| `offline` | `false` | Accept only absolute local directories and local tarballs, omit remote catalog and version operations, and pass `--offline` to pnpm. |
 | `inspectTimeoutMs` | `20000` | Bound on one registry lookup an inspection runs, in milliseconds. |
 | `githubConnectionTimeoutMs` | `5000` | Deadline for the GitHub repository check before installation, in milliseconds. |
 | `gitTransportTimeoutMs` | `5000` | Deadline for each HTTP(S) and SSH access probe of a self-hosted Git repository before installation, in milliseconds. |

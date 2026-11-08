@@ -18,6 +18,7 @@ description: "在本地或 Windows／macOS Actions 中生成 Desktop 安装包�
 - [Windows Actions 打包](#windows-actions)
 - [macOS 自托管打包](#macos-actions)
 - [未签名 Windows 测试安装包](#unsigned-windows-test-installer)
+- [内网 Windows 便携 ZIP](#internal-windows-portable-zip)
 - [无发布签名的本地 macOS DMG](#local-macos-dmg-without-release-signing)
 - [macOS 发布签名与诊断](#macos-release-signing)
 - [目录构建与准备](#directory-and-preparation)
@@ -162,6 +163,24 @@ pnpm run package:desktop:win:x64:unsigned
 该命令读取 `.env.windows`，要求设置 `DSH_DESKTOP_APP_ID` 和[强制更新策略配置](../README.zh.md#mandatory-update-policy)，包括真实的 HTTPS 服务 origin。本机验收和 CI 使用 Node 24；其他工具为根 `packageManager` 固定版本的 pnpm、Git、PowerShell 7（`pwsh`）、tar、Python、Visual C++ Build Tools 和 Windows SDK。Python 不在 `PATH` 中时设置 `PYTHON`。命令将安装包写入 `.desktop-build/targets/win-x64/unsigned-artifacts/`，省略普通自动更新配置，清除签名凭据，且不生成发布完成记录。无需 EV 或上传凭据。签名打包和上传仍遵循正式发布要求。
 
 先运行 `pnpm install --frozen-lockfile`，再运行 `pnpm run package:desktop:win:x64:unsigned --check` 校验配置和工具，最后执行上面的完整命令。打包自行执行完整构建和隔离的运行时 smoke，不调用在线模型。阶段日志保留在 `.desktop-build/packaging-runs/`；仅构建成功不代表安装包验证通过。依赖安装和运行时准备需要访问 npm、GitHub release 资源和 nodejs.org；网络需要时使用现有 registry 和代理配置。缓存与工具位置属于构建机器配置，不在跟踪文件中固定个人路径。
+
+<a id="internal-windows-portable-zip"></a>
+
+## 内网 Windows 便携 ZIP
+
+内网 Windows x64 便携构建生成一个无需安装或证书、解压后即可运行的未签名 ZIP：
+
+```sh
+pnpm run package:desktop:portable
+```
+
+命令将文件写入 `apps/desktop/.desktop-build/targets/win-x64/portable-artifacts/deepseek-harness-<version>-win-x64-portable.zip`。解压后双击 `DeepSeek Harness.exe`。压缩包包含完整的 Electron 解包目录，不包含更新元数据或发布完成记录，也不会作为公开下载产物。
+
+启动后，在 Models 设置中添加内网 OpenAI 兼容路由。运行时填写 `baseURL`、模型 ID 和 API key；ZIP 中不内置地址、模型 ID 或密钥。便携 profile 禁用官方账号／模型路由、遥测、更新检查、`web_search` 和 `web_fetch`。该可执行文件面向受控内网解压运行，因此不签名。
+
+**插件**页面接受插件的绝对本地目录或本地 `.tgz`／`.tar.gz` 组合包。Registry 包名、Git 来源、HTTP(S) tarball、公共 registry 探测、目录下载和版本更新均被禁用。安装以离线模式运行 pnpm，因此每项依赖都必须已经打入插件压缩包，或已存在于该机器的 pnpm store；缺少依赖时安装失败，不会回退访问 registry。
+
+该 profile 不提供进程级网络隔离。Shell、PTC、MCP 和本地安装的插件仍可自行建立连接；需要限制外连时使用内网部署的防火墙策略。
 
 <a id="local-macos-dmg-without-release-signing"></a>
 

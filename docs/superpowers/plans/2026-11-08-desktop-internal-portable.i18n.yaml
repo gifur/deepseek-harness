@@ -1,0 +1,25 @@
+# Bilingual-pair consistency record for 2026-11-08-desktop-internal-portable.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/superpowers/plans/2026-11-08-desktop-internal-portable.md
+/desktop-internal-portable-build-implementation-plan:
+  en: 7ac8c428ee013377
+  zh: 6bd0af0bffbd0f30
+/desktop-internal-portable-build-implementation-plan/global-constraints:
+  en: 4cf67df40c93872e
+  zh: a57c6f3a5daf6c18
+/desktop-internal-portable-build-implementation-plan/global-constraints/task-1-lock-portable-invocation-and-archive-behavior-with-tests:
+  en: 1d4bea3986f942c4
+  zh: c7fa8b964bbe24b2
+/desktop-internal-portable-build-implementation-plan/global-constraints/task-2-add-the-portable-package-command-and-keep-release-publication-separate:
+  en: 370235821ca98abd
+  zh: 7c22875c5ee3ef33
+/desktop-internal-portable-build-implementation-plan/global-constraints/task-3-add-a-portable-only-profile-overlay:
+  en: 4ec0a2c673a85278
+  zh: b29f83cfe3c6be32
+/desktop-internal-portable-build-implementation-plan/global-constraints/task-4-validate-packaged-zip-contents-and-document-the-internal-workflow:
+  en: 7beb72a14ba1ae29
+  zh: ede38cbefd712082
+/desktop-internal-portable-build-implementation-plan/global-constraints/task-5-run-final-verification:
+  en: 3ebaaae0ef5af9ce
+  zh: 52d7988502abc87c

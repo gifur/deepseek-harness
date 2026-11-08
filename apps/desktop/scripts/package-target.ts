@@ -10,7 +10,7 @@ import {
 } from './desktop-auto-update-environment.mjs'
 import { desktopArtifactOutput, desktopTargetBuildPaths } from './desktop-build-paths.mjs'
 import { packageMacOSArtifacts, type DesktopPrepackagedArtifact } from './package-macos.ts'
-import { loadDesktopPackageEnvironment, localMacOSPackageEnvironment, validateDesktopPackageEnvironment } from './desktop-package-environment.mjs'
+import { loadDesktopPackageEnvironment, localMacOSPackageEnvironment, portableWindowsPackageEnvironment, validateDesktopPackageEnvironment } from './desktop-package-environment.mjs'
 import { createPackagingRun, recordPackagingEvent } from './packaging-run.mjs'
 import { withWindowsSigningStage } from './windows-signing-stage.mjs'
 import { prepareWindowsSignatureCacheDirectory, resolveWindowsSignatureCacheDirectory } from './windows-signature-cache-directory.mjs'
@@ -25,6 +25,9 @@ import { suggestDesktopBuildVersion } from './desktop-build-version-discovery.ts
 import { desktopBuildCommitEnvironment, readDesktopBuildCommit, resolveDesktopBuildCommit } from './desktop-build-commit.mjs'
 import { requireDesktopToolchain } from './desktop-toolchain-preflight.ts'
 import { withMacOSNotarizationProxy } from './macos-notarization-proxy.ts'
+import { resolvePortableArchive } from './portable-archive.mjs'
+
+export { resolvePortableArchive } from './portable-archive.mjs'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
@@ -195,6 +198,7 @@ export function resolveDesktopPackageTarget(
 
 interface DesktopPackageInvocation {
   readonly target: DesktopPackageTarget
+  readonly portable: boolean
   readonly directory: boolean
   readonly prepareOnly: boolean
   readonly unsigned: boolean
@@ -229,6 +233,7 @@ export function parseDesktopPackageInvocation(
     allowPositionals: true,
     options: {
       dir: { type: 'boolean', default: false },
+      portable: { type: 'boolean', default: false },
       'prepare-only': { type: 'boolean', default: false },
       unsigned: { type: 'boolean', default: false },
       'skip-notarization': { type: 'boolean', default: false },
@@ -237,7 +242,9 @@ export function parseDesktopPackageInvocation(
     },
   })
   if (positionals.length > 1) throw new Error('desktop package: expected at most one target')
-  const name = positionals[0] ?? hostTargetName(hostPlatform, hostArch)
+  const name = positionals[0] ?? (values.portable ? 'win-x64' : hostTargetName(hostPlatform, hostArch))
+  if (values.portable && name !== 'win-x64') throw new Error('desktop package: --portable requires the win-x64 target')
+  if (values.portable && values['prepare-only']) throw new Error('desktop package: --portable cannot use --prepare-only')
   if (values.unsigned && values['prepare-only']) throw new Error('desktop package: --unsigned cannot use --prepare-only')
   if (values['skip-notarization'] && (name === 'win-x64' || values.unsigned || values['prepare-only'])) {
     throw new Error('desktop package: --skip-notarization requires a signed macOS build, without --prepare-only')
@@ -248,9 +255,10 @@ export function parseDesktopPackageInvocation(
   }
   return {
     target: resolveDesktopPackageTarget(name, hostPlatform, hostArch),
-    directory: values.dir,
+    portable: values.portable,
+    directory: values.dir || values.portable,
     prepareOnly: values['prepare-only'],
-    unsigned: values.unsigned,
+    unsigned: values.unsigned || values.portable,
     skipNotarization: values['skip-notarization'],
     check: values.check,
     requestedBuildVersion,
@@ -346,9 +354,10 @@ async function main(): Promise<void> {
   }
   const environment = target.platform === 'darwin' && invocation.unsigned
     ? localMacOSPackageEnvironment()
-    : loadDesktopPackageEnvironment(target.platform, process.env, APP_ROOT, {
-      unsigned: invocation.unsigned, prepareOnly: invocation.prepareOnly,
-    })
+    : invocation.portable ? portableWindowsPackageEnvironment(process.env)
+      : loadDesktopPackageEnvironment(target.platform, process.env, APP_ROOT, {
+        unsigned: invocation.unsigned, prepareOnly: invocation.prepareOnly,
+      })
   const productVersion = packageVersion(join(APP_ROOT, 'package.json'), 'desktop package')
   // Release settings come from the selected configuration files, so the version this run publishes is an
   // argument; the environment variable below only carries it to the child processes that build.
@@ -405,6 +414,11 @@ async function main(): Promise<void> {
     const filename = `deepseek-harness-${buildVersion}-mac-${target.arch}${output.suffix}.dmg`
     console.log(`DMG: ${join(output.directory, filename)}`)
   }
+  if (success && invocation.portable) {
+    const paths = desktopTargetBuildPaths(target.name, environment)
+    const archive = join(paths.root, 'portable-artifacts', `deepseek-harness-${buildVersion}-win-x64-portable.zip`)
+    console.log(`Portable ZIP: ${archive}`)
+  }
 }
 
 /**
@@ -437,12 +451,14 @@ export async function packageTarget(
     desktopElectronBuilderEnvironment(environment, invocation.unsigned)))
   const targetEnv: NodeJS.ProcessEnv = {
     ...buildEnv,
+    ...(invocation.portable ? { DSH_DESKTOP_PORTABLE_BUILD: '1' } : {}),
     DSH_DESKTOP_MACOS_SKIP_NOTARIZATION: invocation.skipNotarization ? '1' : '0',
     DSH_DESKTOP_TARGET_PLATFORM: target.platform,
     DSH_DESKTOP_TARGET_ARCH: target.arch,
   }
   const downloadEnv = macOSDownloadEnvironment(targetEnv, mac?.downloadProxy)
   const electronBuilderEnv = desktopElectronBuilderEnvironment(downloadEnv, invocation.unsigned)
+  if (invocation.portable) electronBuilderEnv.DSH_DESKTOP_PORTABLE_BUILD = '1'
   if (target.platform === 'win32') {
     electronBuilderEnv.ELECTRON_BUILDER_COMPRESSION_LEVEL = String(resolveWindowsPackageSettings(environment).compressionLevel)
   }
@@ -560,6 +576,16 @@ export async function packageTarget(
     }
     await execute(['exec', 'tsx', 'scripts/smoke-packaged-runtime.ts',
       ...(invocation.unsigned ? ['--unsigned'] : []), ...(invocation.skipNotarization ? ['--skip-notarization'] : [])], targetEnv)
+  }
+  if (invocation.portable) {
+    const source = join(artifactsRoot, 'win-unpacked')
+    const archive = join(buildPaths.root, 'portable-artifacts',
+      `deepseek-harness-${resolveDesktopBuildVersion(environment, packageVersion(join(APP_ROOT, 'package.json'), 'desktop package'))}-win-x64-portable.zip`)
+    mkdirSync(join(buildPaths.root, 'portable-artifacts'), { recursive: true })
+    const paths = resolvePortableArchive(source, archive)
+    if (run === undefined) throw new Error('desktop package: portable packaging requires a supervised run')
+    await run.run(`archive:portable ${archive}`, process.execPath,
+      [join(APP_ROOT, 'scripts', 'portable-archive.mjs'), paths.source, paths.archive], { cwd: APP_ROOT, env: electronBuilderEnv })
   }
   if (!invocation.directory && !invocation.unsigned && !invocation.skipNotarization) {
     writeReleaseRecord(target, electronBuilderEnv, buildPaths.artifacts)

@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { join } from 'node:path'
 import {
   desktopElectronBuilderArguments,
   desktopElectronBuilderEnvironment,
   parseDesktopPackageInvocation,
+  resolvePortableArchive,
   resolveDesktopPackageTarget,
   withoutDesktopUploadCredentials,
   withoutWindowsSigningEnvironment,
@@ -44,6 +46,16 @@ describe('desktop package target', () => {
       .toThrow(/at most one target/u)
   })
 
+  it('turns portable packaging into an unsigned Windows directory build', () => {
+    expect(parseDesktopPackageInvocation(['--portable'], 'win32', 'x64')).toMatchObject({
+      target: { name: 'win-x64' }, portable: true, unsigned: true, directory: true,
+    })
+    expect(() => parseDesktopPackageInvocation(['--portable', 'mac-arm64'], 'darwin', 'arm64'))
+      .toThrow(/win-x64/u)
+    expect(() => parseDesktopPackageInvocation(['--portable', '--prepare-only'], 'win32', 'x64'))
+      .toThrow(/prepare-only/u)
+  })
+
   it('parses a build version, including the separator a pnpm run script forwards', () => {
     expect(parseDesktopPackageInvocation(['mac-arm64'], 'darwin', 'arm64').requestedBuildVersion).toBeUndefined()
     expect(parseDesktopPackageInvocation(['mac-arm64', '--build-version', '0.1.6-alpha.2.20260921.1'], 'darwin', 'arm64')
@@ -71,6 +83,21 @@ describe('desktop package target', () => {
       'never',
     ])
     expect(desktopElectronBuilderArguments(target, true)).toContain('--dir')
+  })
+
+  it('archives the contents of win-unpacked without including its parent tree', () => {
+    const source = join(process.cwd(), '.portable-fixture', 'win-unpacked')
+    const archive = join(process.cwd(), '.portable-fixture', 'portable', 'app.zip')
+    expect(resolvePortableArchive(source, archive)).toEqual({
+      source,
+      archive,
+      cwd: source,
+      entries: ['.'],
+    })
+    expect(() => resolvePortableArchive(source, join(source, 'app.zip')))
+      .toThrow(/inside the source/u)
+    expect(() => resolvePortableArchive(join(process.cwd(), 'build'), archive))
+      .toThrow(/win-unpacked/u)
   })
 
   it('accepts unsigned supported targets and rejects preparation-only use', () => {

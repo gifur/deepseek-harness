@@ -14,6 +14,7 @@ Desktop runs the Harness workspace in a native application. This reference cover
 
 - [Application overview](#application-overview)
 - [Terminal command](#terminal-command)
+- [Internal portable build](#internal-portable-build)
 - [Closing the window and quitting](#closing-the-window-and-quitting)
 - [Key technical decisions](#key-technical-decisions)
 - [Bundled command runtime](#bundled-command-runtime)
@@ -243,6 +244,12 @@ Use the dedicated guides for build and release operations. Shared Windows runner
 - [Desktop packaging](packaging/README.md): local and Actions builds, versions, deployment settings, artifacts, logs and verification.
 - [Windows signing and runner operations](windows-signing/README.md): machine setup, accepted isolation risks, signing credentials, token failures and cache maintenance.
 - [Desktop publication](publishing/README.md): upload credentials, release identity, fixed downloads, update feeds and upload recovery.
+
+<a id="internal-portable-build"></a>
+
+### Internal portable build
+
+The [Desktop packaging guide](packaging/README.md#internal-windows-portable-zip) documents the unsigned internal Windows x64 ZIP. It starts directly in the workspace, disables official routes and web tools, accepts the internal OpenAI-compatible model route through runtime Models settings, and installs local plugin bundles without registry access.
 
 <a id="windows-uninstall-rules"></a>
 

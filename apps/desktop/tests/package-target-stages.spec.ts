@@ -207,6 +207,20 @@ it.each(['--unsigned', '--prepare-only'])('keeps %s hardware-free and creates no
   expect(stages.includes('exec tsx scripts/smoke-packaged-runtime.ts --unsigned')).toBe(mode === '--unsigned')
 })
 
+it('builds the portable Windows directory, verifies it, and archives it without release metadata', async () => {
+  const { run, stages } = supervisor()
+  await packageTarget(parseDesktopPackageInvocation(['--portable'], 'win32', 'x64'), environment, run)
+  expect(stages).toContain('run build --profile local')
+  expect(stages).toContain('exec electron-builder --config electron-builder.config.mjs --win --x64 --publish never --dir')
+  expect(stages).toContain('exec tsx scripts/smoke-packaged-runtime.ts --unsigned')
+  expect(stages.some(stage => stage.startsWith('archive:portable'))).toBe(true)
+  const archive = run.run.mock.calls.find(([stage]) => stage.startsWith('archive:portable'))
+  expect(archive?.[3].env.DSH_DESKTOP_PORTABLE_BUILD).toBe('1')
+  expect(archive?.[0]).toMatch(/deepseek-harness-.*-win-x64-portable\.zip$/u)
+  expect(stages).not.toContain('preflight:windows-signing')
+  expect(writeFileSync).not.toHaveBeenCalled()
+})
+
 it.each(['mac-arm64', 'mac-x64', 'win-x64'] as const)('selects branding from the signing mode for %s', async (target) => {
   const modes = [[], ['--unsigned'], ['--dir'], ['--unsigned', '--dir'], ['--prepare-only'],
     ...(target === 'win-x64' ? [] : [['--skip-notarization'], ['--skip-notarization', '--dir']])]
