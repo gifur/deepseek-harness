@@ -15,7 +15,7 @@ Use this skill when a package came from `npm install`, an npm cache export, a do
    - `name` and `version` are present.
    A normal library or a plain Cordis plugin is not converted into a profile bundle. Stop with the missing requirement.
 
-2. **Check dependencies.** Bundle `dependencies` and available `optionalDependencies` from nearby `node_modules` trees. Resolve transitive `dependencies` recursively and fail for a missing required dependency or conflicting versions. Peer dependencies are supplied by DSH and must remain peers; do not copy DSH core, React, or other peer packages into the tarball merely to hide an incompatible target. Native modules require an author-provided release or a separately verified Windows-compatible artifact.
+2. **Check dependencies.** Bundle `dependencies` and available `optionalDependencies` from nearby `node_modules` trees. Preserve each dependency's installed nested `node_modules` graph instead of flattening packages that may have incompatible versions; fail for a missing direct required dependency. Peer dependencies are supplied by DSH and must remain peers; do not copy DSH core, React, or other peer packages into the tarball merely to hide an incompatible target. Native modules require an author-provided release or a separately verified Windows-compatible artifact.
 
 3. **Create and validate the archive.** Run the helper from the repository root:
 

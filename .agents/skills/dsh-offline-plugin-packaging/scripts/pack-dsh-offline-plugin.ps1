@@ -106,7 +106,7 @@ function Copy-RuntimeDependency(
             $first = Read-Manifest $ResolvedSources[$Name]
             $next = Read-Manifest $source
             if ([string]$first.version -ne [string]$next.version) {
-                throw "Conflicting runtime dependency versions for ${Name}: $($first.version) and $($next.version)"
+                throw "Conflicting runtime dependency versions for '${Name}' from '$($ResolvedSources[$Name])' and '$source': $($first.version) and $($next.version)"
             }
         }
         return
@@ -121,22 +121,6 @@ function Copy-RuntimeDependency(
     Get-ChildItem -LiteralPath $source -Force | Copy-Item -Destination $destination -Recurse -Force
     $Bundled.Add($Name)
 
-    $dependencyManifest = Read-Manifest $source
-    $nestedRoots = @(
-        (Join-Path $source 'node_modules'),
-        $source,
-        $LookupRoots
-    ) | Select-Object -Unique
-    foreach ($dependency in Get-DependencyNames $dependencyManifest 'dependencies') {
-        Copy-RuntimeDependency $dependency $nestedRoots $StagingNodeModules $Visited $Bundled $ResolvedSources
-    }
-    foreach ($dependency in Get-DependencyNames $dependencyManifest 'optionalDependencies') {
-        try {
-            Copy-RuntimeDependency $dependency $nestedRoots $StagingNodeModules $Visited $Bundled $ResolvedSources
-        } catch {
-            Write-Warning "Optional runtime dependency is unavailable and will not be bundled: $dependency"
-        }
-    }
 }
 
 function Get-PackageRoot([string]$Root) {
