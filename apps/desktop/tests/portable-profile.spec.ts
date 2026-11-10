@@ -31,13 +31,14 @@ it('keeps the portable profile free of official endpoints and web tools while al
   expect([...disabled]).toEqual(expect.arrayContaining([
     'deepseek-account', 'llm-deepseek', 'llm-deepseek-account', 'session-telemetry-otel',
     'desktop-product-telemetry', 'product-analytics', 'tool-web', 'web-search-deepseek',
-    'web-deepseek-api', 'web-fetch-http', 'tool-plugin-manager',
+    'web-deepseek-api', 'web-fetch-http',
   ]))
   expect(disabled).not.toContain('web')
   expect(disabled).not.toContain('plugin-manager')
   expect(disabled).not.toContain('ui-plugin-manager')
   expect(disabled).not.toContain('plugin-inventory')
   expect(disabled).not.toContain('ui-settings-plugin-inventory')
+  expect(disabled).not.toContain('tool-plugin-manager')
   expect(rows.find(row => row.id === 'plugin-manager')).toMatchObject({ config: { offline: true } })
   expect(rows.find(row => row.id === 'ui-plugin-manager')).toMatchObject({ config: { registryProbeEnabled: false } })
   expect(JSON.stringify(rows)).not.toMatch(/api\.deepseek\.com|DEEPSEEK_API_KEY|baseURL|models:/u)

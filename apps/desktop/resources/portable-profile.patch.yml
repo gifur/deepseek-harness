@@ -24,8 +24,6 @@
   disabled: false
   config:
     offline: true
-- id: tool-plugin-manager
-  disabled: true
 - id: ui-plugin-manager
   disabled: false
   config:

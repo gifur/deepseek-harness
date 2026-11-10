@@ -180,6 +180,8 @@ pnpm run package:desktop:portable
 
 **插件**页面接受插件的绝对本地目录或本地 `.tgz`／`.tar.gz` 组合包。Registry 包名、Git 来源、HTTP(S) tarball、公共 registry 探测、目录下载和版本更新均被禁用。安装以离线模式运行 pnpm，因此每项依赖都必须已经打入插件压缩包，或已存在于该机器的 pnpm store；缺少依赖时安装失败，不会回退访问 registry。[离线安装插件指南](../../../docs/user/guide/portable-offline-plugins.zh.md)说明从 GitHub 转移到内网的流程、插件包要求和经过验证的案例。设置中的**内置插件**页面仍可读取本地插件清单和运行状态，但不会访问 registry。
 
+Agent 可通过 `plugin_manager` 管理当前 profile 的插件。离线模式拒绝 registry、Git 和 HTTP(S) 安装来源及在线版本查询；本地插件代码和获准执行的安装脚本仍可能自行联网。
+
 该 profile 不提供进程级网络隔离。Shell、PTC、MCP 和本地安装的插件仍可自行建立连接；需要限制外连时使用内网部署的防火墙策略。
 
 <a id="local-macos-dmg-without-release-signing"></a>

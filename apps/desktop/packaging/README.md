@@ -180,6 +180,8 @@ After launch, open Models settings and add the internal OpenAI-compatible route.
 
 The **Plugins** page accepts an absolute local plugin directory or a local `.tgz`/`.tar.gz` bundle. Registry names, Git sources, HTTP(S) tarballs, public registry probes, catalog downloads, and version updates are disabled. Installation runs pnpm in offline mode, so every dependency must be bundled in the plugin archive or already present in the machine's pnpm store; a missing dependency fails the installation without falling back to a registry. See [installing plugins offline](../../../docs/user/guide/portable-offline-plugins.md) for the GitHub-to-internal-network workflow, package requirements, and a verified example. The **Built-in plugins** Settings page remains available for the local plugin inventory and runtime status; it does not access a registry.
 
+The Agent can use `plugin_manager` to manage the current profile's plugins. Offline mode refuses registry, Git, and HTTP(S) install sources and online version queries; locally installed plugin code and approved install scripts can still make their own network connections.
+
 This profile does not provide process-wide network isolation. Shell, PTC, MCP, and locally installed plugins can create their own connections; use the internal deployment firewall policy when egress must be blocked.
 
 <a id="local-macos-dmg-without-release-signing"></a>
