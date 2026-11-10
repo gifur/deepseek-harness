@@ -249,7 +249,7 @@ Desktop 在 Host 启动后、打开工作区前检查模型 API Key 引用是否
 
 ### 内网便携构建
 
-[Desktop 打包指南](packaging/README.zh.md#internal-windows-portable-zip)说明未签名的内网 Windows x64 ZIP。它直接进入工作区，禁用官方路由与 Web 工具，通过运行时 Models 设置接受内网 OpenAI 兼容模型路由，并且无需访问 registry 即可安装本地插件组合包。
+[Desktop 打包指南](packaging/README.zh.md#internal-windows-portable-zip)说明未签名的内网 Windows x64 ZIP。它直接进入工作区，禁用官方路由与 Web 工具，通过运行时 Models 设置接受内网 OpenAI 兼容模型路由，并且无需访问 registry 即可安装本地插件组合包。设置中的内置插件页面仍可查看本地清单和运行状态。
 
 <a id="windows-uninstall-rules"></a>
 

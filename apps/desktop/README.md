@@ -249,7 +249,7 @@ Use the dedicated guides for build and release operations. Shared Windows runner
 
 ### Internal portable build
 
-The [Desktop packaging guide](packaging/README.md#internal-windows-portable-zip) documents the unsigned internal Windows x64 ZIP. It starts directly in the workspace, disables official routes and web tools, accepts the internal OpenAI-compatible model route through runtime Models settings, and installs local plugin bundles without registry access.
+The [Desktop packaging guide](packaging/README.md#internal-windows-portable-zip) documents the unsigned internal Windows x64 ZIP. It starts directly in the workspace, disables official routes and web tools, accepts the internal OpenAI-compatible model route through runtime Models settings, and installs local plugin bundles without registry access. The Built-in plugins Settings page remains available for the local inventory and runtime status.
 
 <a id="windows-uninstall-rules"></a>
 

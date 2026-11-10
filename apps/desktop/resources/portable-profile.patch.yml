@@ -30,8 +30,6 @@
   disabled: false
   config:
     registryProbeEnabled: false
-- id: ui-settings-plugin-inventory
-  disabled: true
 - id: plugin-inventory
   disabled: false
 - id: account-controller
