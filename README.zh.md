@@ -78,6 +78,9 @@ pnpm dsh web
 使用以下命令构建未签名的 Windows x64 内网便携 ZIP：
 
 ```sh
+$env:ELECTRON_GET_USE_PROXY = "true"
+$env:HTTPS_PROXY = "http://127.0.0.1:7890"
+$env:HTTP_PROXY = $env:HTTPS_PROXY
 pnpm run package:desktop:portable
 ```
 
